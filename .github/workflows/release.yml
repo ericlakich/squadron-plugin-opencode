@@ -20,8 +20,54 @@ env:
   GO_VERSION: "1.23"
 
 jobs:
+  # Gate the release on the README version touchpoints being in sync with the
+  # tag being released. If they mismatch, no assets are built or published, so
+  # `version = "..."` can never resolve to a release whose docs disagree.
+  verify-version:
+    name: verify README versions match the release tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check README version touchpoints
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+
+          # Number of `version = "vX.Y.Z"` references the README is expected to
+          # carry (Installation example + each Configuration example). Bump this
+          # if you intentionally add or remove a touchpoint. See CLAUDE.md.
+          EXPECTED=3
+
+          VERSIONS=()
+          while IFS= read -r v; do
+            [[ -n "$v" ]] && VERSIONS+=("$v")
+          done < <(
+            grep -oE 'version[[:space:]]*=[[:space:]]*"v[0-9]+\.[0-9]+\.[0-9]+"' README.md \
+              | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+'
+          )
+
+          echo "Release tag: $TAG"
+          echo "Found ${#VERSIONS[@]} version reference(s) in README.md: ${VERSIONS[*]:-(none)}"
+
+          if [[ ${#VERSIONS[@]} -ne $EXPECTED ]]; then
+            echo "::error file=README.md::Expected $EXPECTED version touchpoint(s) in README.md but found ${#VERSIONS[@]}. Update EXPECTED in release.yml if a touchpoint was intentionally added or removed."
+            exit 1
+          fi
+
+          for v in "${VERSIONS[@]}"; do
+            if [[ "$v" != "$TAG" ]]; then
+              echo "::error file=README.md::README version reference '$v' does not match the release tag '$TAG'. Sync all README version touchpoints before releasing (see CLAUDE.md)."
+              exit 1
+            fi
+          done
+
+          echo "OK: all $EXPECTED README version touchpoints match the release tag $TAG."
+
   build:
     name: build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: verify-version
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true

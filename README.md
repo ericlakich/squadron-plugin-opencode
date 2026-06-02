@@ -104,7 +104,27 @@ Example config (Bedrock-compatible endpoint serving Qwen3 Coder):
 
 OpenCode resolves `{env:VAR}` placeholders (like `AWS_BEARER_TOKEN_BEDROCK` above) from the environment. The plugin runs `opencode` with the inherited process environment, so make sure those variables are set wherever Squadron launches the plugin.
 
-## Build
+## Installation
+
+### From a GitHub release (recommended)
+
+Reference the plugin by its repo path and a released version. Squadron downloads the prebuilt binary for your platform from the matching [GitHub release](https://github.com/ericlakich/squadron-plugin-opencode/releases) — no local build step required.
+
+```hcl
+plugin "opencode" {
+  source  = "github.com/ericlakich/squadron-plugin-opencode"
+  version = "v0.0.2"
+  settings {
+    # ...see Configuration below
+  }
+}
+```
+
+Releases are produced by the `release.yml` workflow, which cross-compiles for darwin/linux/windows × amd64/arm64 and attaches the archives plus `checksums.txt` to each tagged release.
+
+### Local build (for development)
+
+Build the plugin yourself and install it into Squadron's plugin directory:
 
 ```bash
 # Clone the plugin project
@@ -120,14 +140,17 @@ mkdir -p ~/.squadron/plugins/opencode/local
 cp plugin ~/.squadron/plugins/opencode/local/plugin
 ```
 
+A locally built plugin is referenced with `version = "local"` instead of `source` + a released version.
+
 ## Configuration
 
 Add the plugin to your Squadron HCL config. Supply the OpenCode config inline:
 
 ```hcl
 plugin "opencode" {
-  version = "local"
-  settings = {
+  source  = "github.com/ericlakich/squadron-plugin-opencode"
+  version = "v0.0.2"
+  settings {
     config_json = <<-JSON
       {
         "$schema": "https://opencode.ai/config.json",
@@ -159,8 +182,9 @@ Or point at a config file on disk:
 
 ```hcl
 plugin "opencode" {
-  version = "local"
-  settings = {
+  source  = "github.com/ericlakich/squadron-plugin-opencode"
+  version = "v0.0.2"
+  settings {
     config_path = "/Users/me/.config/opencode/opencode.json"
     default_cwd = "/Users/me/Projects/my-api"
   }
