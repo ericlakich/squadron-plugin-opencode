@@ -113,7 +113,7 @@ Reference the plugin by its repo path and a released version. Squadron downloads
 ```hcl
 plugin "opencode" {
   source  = "github.com/ericlakich/squadron-plugin-opencode"
-  version = "v0.0.2"
+  version = "v0.0.3"
   settings {
     # ...see Configuration below
   }
@@ -149,7 +149,7 @@ Add the plugin to your Squadron HCL config. Supply the OpenCode config inline:
 ```hcl
 plugin "opencode" {
   source  = "github.com/ericlakich/squadron-plugin-opencode"
-  version = "v0.0.2"
+  version = "v0.0.3"
   settings {
     config_json = <<-JSON
       {
@@ -183,7 +183,7 @@ Or point at a config file on disk:
 ```hcl
 plugin "opencode" {
   source  = "github.com/ericlakich/squadron-plugin-opencode"
-  version = "v0.0.2"
+  version = "v0.0.3"
   settings {
     config_path = "/Users/me/.config/opencode/opencode.json"
     default_cwd = "/Users/me/Projects/my-api"

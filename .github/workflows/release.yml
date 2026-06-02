@@ -27,7 +27,7 @@ jobs:
     name: verify README versions match the release tag
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check README version touchpoints
         env:
@@ -81,9 +81,9 @@ jobs:
           - { goos: windows, goarch: arm64 }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
@@ -129,7 +129,7 @@ jobs:
           ls -lh "dist/$ARCHIVE"
 
       - name: Upload archive artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: archive-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
@@ -142,7 +142,7 @@ jobs:
     needs: build
     steps:
       - name: Download all archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: archive-*
