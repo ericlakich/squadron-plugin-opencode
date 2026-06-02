@@ -65,7 +65,7 @@ Lists recent OpenCode sessions (newest first) with their IDs, titles, and workin
 - Go 1.23+ (to build the plugin)
 - The [`opencode` CLI](https://opencode.ai/docs) installed on the machine that runs Squadron, and on `PATH` (or referenced via the `opencode_bin` setting)
 - An OpenCode config that defines the provider and model you want to use (see below)
-- Any credentials your config references (e.g. an API key or bearer token) available in the environment Squadron runs the plugin in
+- Any credentials your config references (e.g. an API key or bearer token), supplied either as a Squadron secret via an `env_<NAME>` setting (recommended) or already present in the environment Squadron runs the plugin in
 
 ## OpenCode Config
 
@@ -102,7 +102,7 @@ Example config (Bedrock-compatible endpoint serving Qwen3 Coder):
 }
 ```
 
-OpenCode resolves `{env:VAR}` placeholders (like `AWS_BEARER_TOKEN_BEDROCK` above) from the environment. The plugin runs `opencode` with the inherited process environment, so make sure those variables are set wherever Squadron launches the plugin.
+OpenCode resolves `{env:VAR}` placeholders (like `AWS_BEARER_TOKEN_BEDROCK` above) from the environment of the `opencode` process. Rather than relying on a local env file, supply these as **Squadron secrets**: any plugin setting prefixed with `env_` is exported to the `opencode` subprocess as that environment variable. For example, `env_AWS_BEARER_TOKEN_BEDROCK = vars.aws_bearer_token_bedrock` injects the secret so `{env:AWS_BEARER_TOKEN_BEDROCK}` resolves at run time. These `env_*` values override any value already present in the environment, and the plugin still inherits the rest of the process environment. See [Settings](#settings).
 
 ## Installation
 
@@ -113,7 +113,7 @@ Reference the plugin by its repo path and a released version. Squadron downloads
 ```hcl
 plugin "opencode" {
   source  = "github.com/ericlakich/squadron-plugin-opencode"
-  version = "v0.0.3"
+  version = "v0.0.4"
   settings {
     # ...see Configuration below
   }
@@ -149,7 +149,7 @@ Add the plugin to your Squadron HCL config. Supply the OpenCode config inline:
 ```hcl
 plugin "opencode" {
   source  = "github.com/ericlakich/squadron-plugin-opencode"
-  version = "v0.0.3"
+  version = "v0.0.4"
   settings {
     config_json = <<-JSON
       {
@@ -171,6 +171,10 @@ plugin "opencode" {
       }
     JSON
 
+    # Injected into the opencode subprocess so {env:AWS_BEARER_TOKEN_BEDROCK}
+    # in the config above resolves from a Squadron secret, not a local env file.
+    env_AWS_BEARER_TOKEN_BEDROCK = vars.aws_bearer_token_bedrock
+
     default_cwd      = "/Users/me/Projects/my-api"
     skip_permissions = "true"
     timeout_minutes  = "45"
@@ -183,7 +187,7 @@ Or point at a config file on disk:
 ```hcl
 plugin "opencode" {
   source  = "github.com/ericlakich/squadron-plugin-opencode"
-  version = "v0.0.3"
+  version = "v0.0.4"
   settings {
     config_path = "/Users/me/.config/opencode/opencode.json"
     default_cwd = "/Users/me/Projects/my-api"
@@ -217,6 +221,7 @@ agent "developer" {
 | `skip_permissions` | no | `"true"` to pass `--dangerously-skip-permissions` so runs can edit files and run commands without interactive approval. Defaults to `"false"`. See the warning below. |
 | `output_format` | no | `"default"` (human-readable) or `"json"` (raw JSON events) for OpenCode's output. Defaults to `"default"`. |
 | `timeout_minutes` | no | Maximum time in minutes for a single OpenCode run. Defaults to `30`. Increase for long-running tasks. |
+| `env_<NAME>` | no | Exported to the `opencode` subprocess as environment variable `<NAME>` (case preserved). Use to feed secrets from Squadron (e.g. `env_AWS_BEARER_TOKEN_BEDROCK = vars.aws_bearer_token_bedrock`) into the config's `{env:NAME}` placeholders. Overrides any inherited value of the same name. |
 
 > **Permissions:** OpenCode normally asks for approval before editing files or running commands. In a headless Squadron run there is no one to approve, so a development task can stall or refuse to make changes. Setting `skip_permissions = "true"` (which adds `--dangerously-skip-permissions`) lets the session act autonomously — only enable it for directories and tasks you trust. As a finer-grained alternative, configure a [`permission`](https://opencode.ai/docs/permissions) block in your OpenCode config instead.
 

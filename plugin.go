@@ -143,6 +143,11 @@ type Plugin struct {
 //     run commands without interactive approval. Defaults to "false".
 //   - output_format:    "default" (human-readable) or "json" (raw JSON events). Defaults to "default".
 //   - timeout_minutes:  Maximum time in minutes for a single OpenCode run. Defaults to 30.
+//   - env_<NAME>:        Any setting prefixed with "env_" is exported to the opencode
+//     subprocess as the environment variable <NAME> (case preserved). This lets a secret
+//     supplied by Squadron (e.g. env_AWS_BEARER_TOKEN_BEDROCK = vars.aws_bearer_token_bedrock)
+//     resolve a "{env:NAME}" placeholder in the OpenCode config, instead of relying on a
+//     local env file.
 func (p *Plugin) Configure(settings map[string]string) error {
 	client := opencode.New(settings["opencode_bin"])
 
@@ -183,6 +188,22 @@ func (p *Plugin) Configure(settings map[string]string) error {
 			return fmt.Errorf("timeout_minutes must be at least 1, got %d", minutes)
 		}
 		client.RunTimeout = time.Duration(minutes) * time.Minute
+	}
+
+	// Collect env_<NAME> settings into environment variables for the subprocess.
+	// These carry secrets supplied by Squadron (e.g. via vars.*) into OpenCode's
+	// "{env:NAME}" config placeholders.
+	const envPrefix = "env_"
+	extraEnv := make(map[string]string)
+	for k, v := range settings {
+		name := strings.TrimPrefix(k, envPrefix)
+		if name == k || name == "" {
+			continue
+		}
+		extraEnv[name] = v
+	}
+	if len(extraEnv) > 0 {
+		client.ExtraEnv = extraEnv
 	}
 
 	p.client = client

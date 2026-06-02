@@ -47,6 +47,12 @@ type Client struct {
 	// OutputFormat is "default" (human-readable) or "json" (raw JSON events).
 	OutputFormat string
 
+	// ExtraEnv holds additional environment variables to set for the opencode
+	// subprocess. These take precedence over the inherited process environment
+	// and let secrets supplied by Squadron resolve OpenCode config "{env:NAME}"
+	// placeholders (e.g. an API key or bearer token).
+	ExtraEnv map[string]string
+
 	// RunTimeout caps a single `opencode run` invocation. Defaults to DefaultRunTimeout.
 	RunTimeout time.Duration
 }
@@ -99,16 +105,38 @@ type RunResult struct {
 	Started bool
 }
 
-// env returns the process environment with OpenCode config injected.
+// env returns the process environment for the opencode subprocess, with the
+// OpenCode config and any ExtraEnv overrides applied. Overrides win over
+// inherited values with the same key, so a secret supplied by Squadron takes
+// precedence over a stale value already present in the environment.
 func (c *Client) env() []string {
-	env := os.Environ()
+	overrides := make(map[string]string, len(c.ExtraEnv)+1)
 	switch {
 	case c.ConfigJSON != "":
-		env = append(env, "OPENCODE_CONFIG_CONTENT="+c.ConfigJSON)
+		overrides["OPENCODE_CONFIG_CONTENT"] = c.ConfigJSON
 	case c.ConfigPath != "":
-		env = append(env, "OPENCODE_CONFIG="+c.ConfigPath)
+		overrides["OPENCODE_CONFIG"] = c.ConfigPath
 	}
-	return env
+	for k, v := range c.ExtraEnv {
+		overrides[k] = v
+	}
+
+	base := os.Environ()
+	out := make([]string, 0, len(base)+len(overrides))
+	for _, kv := range base {
+		key := kv
+		if i := strings.IndexByte(kv, '='); i >= 0 {
+			key = kv[:i]
+		}
+		if _, replaced := overrides[key]; replaced {
+			continue
+		}
+		out = append(out, kv)
+	}
+	for k, v := range overrides {
+		out = append(out, k+"="+v)
+	}
+	return out
 }
 
 // run executes the opencode binary with args and returns captured output.
